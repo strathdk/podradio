@@ -75,7 +75,8 @@ void printPodcastList(const FeedManager& feedManager) {
 void handleCommand(Player& player, FeedManager& feedManager, std::shared_ptr<BluetoothServer>& bluetoothServer, const std::string& command, const std::vector<std::string>& args = {})
 #else
 void handleCommand(Player& player, FeedManager& feedManager, const std::string& command, const std::vector<std::string>& args = {})
-#endif {
+#endif
+{
     try {
         if (command == "add") {
             if (args.size() < 2) {
