@@ -32,13 +32,11 @@ std::string PodcastFeed::cleanAndValidateUrl(const std::string& url) const {
     // Use ada-url for proper URL parsing and validation
     auto parsed_url = ada::parse<ada::url>(cleaned);
     if (!parsed_url) {
-        std::cerr << "Warning: Invalid URL format: " << cleaned << std::endl;
         return "";
     }
 
     // Validate scheme
     if (parsed_url->get_protocol() != "http:" && parsed_url->get_protocol() != "https:") {
-        std::cerr << "Warning: Invalid URL scheme: " << cleaned << std::endl;
         return "";
     }
 
@@ -70,10 +68,6 @@ std::string PodcastFeed::cleanAndValidateUrl(const std::string& url) const {
         }
     }
 
-    if (!isAudioUrl) {
-        std::cout << "Warning: URL may not point to an audio file: " << cleaned << std::endl;
-    }
-
     return full_url;
 }
 
@@ -82,8 +76,6 @@ void PodcastFeed::loadFromUrl(const std::string& url) {
         throw std::runtime_error("Empty URL provided");
     }
 
-    std::cout << "Fetching podcast feed from: " << url << std::endl;
-    
     try {
         // Use cpr for HTTP request with proper headers
         auto response = cpr::Get(
@@ -123,11 +115,10 @@ void PodcastFeed::loadFromUrl(const std::string& url) {
             }
         }
 
-        std::cout << "Successfully fetched podcast feed (" << response.text.length() << " bytes)" << std::endl;
         parseFeed(response.text);
         
     } catch (const std::exception& e) {
-        std::cerr << "Exception during feed fetch: " << e.what() << std::endl;
+        std::cerr << "Error fetching feed: " << e.what() << std::endl;
         throw;
     }
 }
@@ -135,62 +126,54 @@ void PodcastFeed::loadFromUrl(const std::string& url) {
 std::string PodcastFeed::extractAudioUrl(const pugi::xml_node& item) const {
     std::string audioUrl;
     
-    // 1. Try standard enclosure tag (most common for podcasts)
+    // First priority: Look for enclosure tag with audio type
     auto enclosure = item.child("enclosure");
     if (enclosure) {
-        const char* type = enclosure.attribute("type").value();
-        const char* url = enclosure.attribute("url").value();
+        std::string url = enclosure.attribute("url").value();
+        std::string type = enclosure.attribute("type").value();
         
-        if (url && strlen(url) > 0) {
-            if (type && (strstr(type, "audio/") || strstr(type, "application/octet-stream"))) {
-                audioUrl = cleanAndValidateUrl(url);
-                if (!audioUrl.empty()) {
-                    std::cout << "Found audio URL in enclosure: " << audioUrl << std::endl;
-                    return audioUrl;
-                }
-            }
-        }
-    }
-    
-    // 2. Try media:content tag (Media RSS extension)
-    auto media_content = item.child("media:content");
-    if (media_content) {
-        const char* type = media_content.attribute("type").value();
-        const char* url = media_content.attribute("url").value();
-        
-        if (url && strlen(url) > 0 && type && strstr(type, "audio/")) {
+        // Check if it's an audio type
+        if (type.find("audio/") == 0 || type.find("application/octet-stream") == 0) {
             audioUrl = cleanAndValidateUrl(url);
             if (!audioUrl.empty()) {
-                std::cout << "Found audio URL in media:content: " << audioUrl << std::endl;
                 return audioUrl;
             }
         }
     }
     
-    // 3. Try link tag if it points to audio
-    auto link = item.child("link");
-    if (link && link.text()) {
-        std::string linkUrl = cleanAndValidateUrl(link.text().get());
-        if (!linkUrl.empty()) {
-            // Check if it's likely an audio file
-            std::vector<std::string> audioExts = {".mp3", ".m4a", ".wav", ".ogg", ".aac"};
-            for (const auto& ext : audioExts) {
-                if (linkUrl.find(ext) != std::string::npos) {
-                    std::cout << "Found audio URL in link: " << linkUrl << std::endl;
-                    return linkUrl;
-                }
+    // Second priority: Look for media:content tag with audio URL
+    auto media_content = item.child("media:content");
+    if (media_content) {
+        std::string url = media_content.attribute("url").value();
+        std::string type = media_content.attribute("type").value();
+        
+        if (type.find("audio/") == 0 || type.find("application/octet-stream") == 0) {
+            audioUrl = cleanAndValidateUrl(url);
+            if (!audioUrl.empty()) {
+                return audioUrl;
             }
         }
     }
     
-    // 4. Try guid if it's a permalink and looks like a URL
+    // Third priority: Look for link tag that might contain audio URL
+    auto link = item.child("link");
+    if (link && link.text()) {
+        std::string linkUrl = link.text().get();
+        if (linkUrl.find("http") == 0) {
+            audioUrl = cleanAndValidateUrl(linkUrl);
+            if (!audioUrl.empty()) {
+                return audioUrl;
+            }
+        }
+    }
+    
+    // Fourth priority: Look for audio URL in guid
     auto guid = item.child("guid");
     if (guid && guid.text()) {
         std::string guidStr = guid.text().get();
         if (guidStr.find("http") == 0) {
             audioUrl = cleanAndValidateUrl(guidStr);
             if (!audioUrl.empty()) {
-                std::cout << "Found audio URL in guid: " << audioUrl << std::endl;
                 return audioUrl;
             }
         }
@@ -239,14 +222,10 @@ void PodcastFeed::parseFeed(const std::string& xml) {
         language_ = language.text().get();
     }
 
-    std::cout << "Parsing podcast feed: " << title_ << std::endl;
-
     // Parse episodes (items)
-    int episode_count = 0;
     int episodes_with_audio = 0;
 
     for (auto item : channel.children("item")) {
-        episode_count++;
         Episode episode;
         
         // Parse episode metadata
@@ -270,8 +249,6 @@ void PodcastFeed::parseFeed(const std::string& xml) {
             episode.guid = guid.text().get();
         }
         
-        std::cout << "Processing episode: " << episode.title << std::endl;
-        
         // Extract audio URL
         std::string audioUrl = extractAudioUrl(item);
         
@@ -279,13 +256,9 @@ void PodcastFeed::parseFeed(const std::string& xml) {
             episode.url = audioUrl;
             episodes_.push_back(episode);
             episodes_with_audio++;
-        } else {
-            std::cout << "Warning: No valid audio URL found for episode: " << episode.title << std::endl;
         }
     }
 
-    std::cout << "Found " << episodes_with_audio << " episodes with audio URLs out of " << episode_count << " total episodes" << std::endl;
-    
     if (episodes_.empty()) {
         throw std::runtime_error("No episodes with valid audio URLs found in feed");
     }

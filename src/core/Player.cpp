@@ -14,10 +14,7 @@ namespace core {
 
 // Helper function to clean and validate URLs using ada-url
 static std::string cleanAndValidateUrl(const std::string& url) {
-    std::cout << "DEBUG: Input URL: [" << url << "]" << std::endl;
-    
     if (url.empty()) {
-        std::cout << "DEBUG: URL is empty" << std::endl;
         return "";
     }
 
@@ -26,37 +23,26 @@ static std::string cleanAndValidateUrl(const std::string& url) {
     cleaned.erase(0, cleaned.find_first_not_of(" \t\n\r"));
     cleaned.erase(cleaned.find_last_not_of(" \t\n\r") + 1);
 
-    std::cout << "DEBUG: After trimming: [" << cleaned << "]" << std::endl;
-
     if (cleaned.empty()) {
-        std::cout << "DEBUG: URL is empty after trimming" << std::endl;
         return "";
     }
 
     // Basic URL validation without ada-url for now
     if (cleaned.find("http://") != 0 && cleaned.find("https://") != 0) {
-        std::cout << "DEBUG: Invalid protocol in URL" << std::endl;
         return "";
     }
 
-    std::cout << "DEBUG: URL validation passed: [" << cleaned << "]" << std::endl;
     return cleaned;
 }
 
 // Helper function to resolve URL redirects and get final media URL
 std::string Player::resolveMediaUrl(const std::string& url) {
-    std::cout << "DEBUG resolveMediaUrl: Input URL: [" << url << "]" << std::endl;
-    
     // Clean and validate the URL
     std::string cleaned_url = cleanAndValidateUrl(url);
-    
-    std::cout << "DEBUG resolveMediaUrl: Cleaned URL: [" << cleaned_url << "]" << std::endl;
     
     if (cleaned_url.empty()) {
         throw std::runtime_error("Invalid or empty URL provided");
     }
-
-    std::cout << "Attempting to resolve URL: " << cleaned_url << std::endl;
 
     try {
         // Use cpr for HTTP redirect resolution with better configuration
@@ -72,57 +58,35 @@ std::string Player::resolveMediaUrl(const std::string& url) {
         session.SetTimeout(cpr::Timeout{30000}); // 30 seconds
         session.SetRedirect(cpr::Redirect{50L, true, false, cpr::PostRedirectFlags::POST_ALL});
         session.SetVerifySsl(cpr::VerifySsl{false}); // For compatibility with some podcast services
-        // SSL options removed as they're not compatible with this version of CPR
 
         // First try HEAD request to avoid downloading content
-        std::cout << "Performing HEAD request to resolve redirects..." << std::endl;
         auto head_response = session.Head();
         
         if (head_response.status_code >= 200 && head_response.status_code < 300) {
-            std::cout << "HEAD request successful: " << head_response.status_code << std::endl;
-            
-            // Check content type if available
+            // Check if it's audio content
             auto content_type_it = head_response.header.find("content-type");
             if (content_type_it != head_response.header.end()) {
                 std::string content_type = content_type_it->second;
-                std::cout << "Content-Type: " << content_type << std::endl;
-                
-                if (content_type.find("audio/") != std::string::npos ||
-                    content_type.find("application/octet-stream") != std::string::npos) {
-                    std::cout << "Confirmed audio content type" << std::endl;
+                if (content_type.find("audio/") == 0 || content_type.find("application/octet-stream") == 0) {
+                    return head_response.url.str();
                 }
             }
-            
-            // Check content length if available
-            auto content_length_it = head_response.header.find("content-length");
-            if (content_length_it != head_response.header.end()) {
-                std::cout << "Content-Length: " << content_length_it->second << " bytes" << std::endl;
-            }
-            
-            std::cout << "Successfully resolved URL via HEAD request" << std::endl;
             return head_response.url.str();
         }
-        
-        // If HEAD fails due to SSL issues, try to simplify and retry
+
+        // Handle SSL handshake errors
         if (head_response.error.code != cpr::ErrorCode::OK && 
             head_response.error.message.find("SSL") != std::string::npos) {
-            std::cout << "SSL handshake failed, trying with simplified settings..." << std::endl;
-            
             // Try with more relaxed SSL settings
             session.SetVerifySsl(cpr::VerifySsl{false});
             
             auto retry_response = session.Head();
             if (retry_response.status_code >= 200 && retry_response.status_code < 300) {
-                std::cout << "HEAD request successful with relaxed SSL: " << retry_response.status_code << std::endl;
                 return retry_response.url.str();
             }
         }
         
         // If HEAD fails, try GET request with limited range
-        std::cout << "HEAD request failed (code: " << head_response.status_code 
-                  << "), attempting GET request with range..." << std::endl;
-        
-        // Try a small range request first
         session.SetHeader(cpr::Header{
             {"Accept", "audio/mpeg, audio/mp4, audio/*, application/octet-stream"},
             {"User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"},
@@ -132,14 +96,11 @@ std::string Player::resolveMediaUrl(const std::string& url) {
         auto get_response = session.Get();
         
         if (get_response.status_code >= 200 && get_response.status_code < 300) {
-            std::cout << "GET request successful: " << get_response.status_code << std::endl;
-            std::cout << "Successfully resolved URL via GET request" << std::endl;
             return get_response.url.str();
         }
         
         // If range request fails, try without range
         if (get_response.status_code == 416) { // Range not satisfiable
-            std::cout << "Range request not supported, trying without range..." << std::endl;
             session.SetHeader(cpr::Header{
                 {"Accept", "audio/mpeg, audio/mp4, audio/*, application/octet-stream"},
                 {"User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
@@ -147,16 +108,11 @@ std::string Player::resolveMediaUrl(const std::string& url) {
             
             auto simple_response = session.Get();
             if (simple_response.status_code >= 200 && simple_response.status_code < 300) {
-                std::cout << "Simple GET request successful: " << simple_response.status_code << std::endl;
                 return simple_response.url.str();
             }
         }
         
-        // All requests failed, try a fallback approach for tracking URLs
-        std::cout << "All standard requests failed, trying fallback approach..." << std::endl;
-        
-        // For complex tracking URLs, try to extract the final URL from the redirect chain
-        // This is a workaround for services that have complex SSL requirements
+        // Try fallback approach for tracking URLs
         try {
             // Create a new session with minimal requirements
             auto fallback_session = cpr::Session{};
@@ -171,31 +127,17 @@ std::string Player::resolveMediaUrl(const std::string& url) {
             
             auto fallback_response = fallback_session.Get();
             if (fallback_response.status_code >= 200 && fallback_response.status_code < 400) {
-                std::cout << "Fallback request successful: " << fallback_response.status_code << std::endl;
                 return fallback_response.url.str();
             }
         } catch (const std::exception& e) {
-            std::cout << "Fallback approach also failed: " << e.what() << std::endl;
+            // Fallback failed, continue to return original URL
         }
         
         // If all else fails, return the original URL and let VLC handle it
-        std::cout << "All resolution attempts failed, returning original URL for VLC to handle directly" << std::endl;
-        std::cout << "Debug info - ";
-        if (head_response.status_code != 0) {
-            std::cout << "HEAD: " << head_response.status_code << " ";
-        }
-        if (get_response.status_code != 0) {
-            std::cout << "GET: " << get_response.status_code << " ";
-        }
-        if (get_response.error.code != cpr::ErrorCode::OK) {
-            std::cout << "Error: " << get_response.error.message;
-        }
-        std::cout << std::endl;
-        
         return cleaned_url;
         
     } catch (const std::exception& e) {
-        std::cerr << "Exception during URL resolution: " << e.what() << std::endl;
+        std::cerr << "Error resolving URL: " << e.what() << std::endl;
         throw;
     }
 }
@@ -241,8 +183,6 @@ Player::~Player() {
 }
 
 void Player::play(const std::string& url) {
-    std::cout << "Attempting to play URL: " << url << std::endl;
-
     // If already playing, stop first
     if (playing_) {
         stop();
@@ -253,10 +193,8 @@ void Player::play(const std::string& url) {
         std::string media_url;
         try {
             media_url = resolveMediaUrl(url);
-            std::cout << "Creating media from resolved URL: " << media_url << std::endl;
         } catch (const std::exception& resolve_error) {
-            std::cout << "URL resolution failed: " << resolve_error.what() << std::endl;
-            std::cout << "Falling back to original URL: " << url << std::endl;
+            std::cout << "URL resolution failed, using original URL" << std::endl;
             media_url = url;
         }
 
@@ -283,8 +221,6 @@ void Player::play(const std::string& url) {
         libvlc_media_release(media_);
         media_ = nullptr;
 
-        std::cout << "Starting playback..." << std::endl;
-        
         // Start playback
         if (libvlc_media_player_play(player_) < 0) {
             throw std::runtime_error("Failed to start playback");
@@ -299,7 +235,6 @@ void Player::play(const std::string& url) {
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
             
             libvlc_state_t state = libvlc_media_player_get_state(player_);
-            std::cout << "Player state: " << getStateString(state) << std::endl;
 
             if (state == libvlc_Playing) {
                 playback_started = true;
@@ -333,8 +268,6 @@ void Player::play(const std::string& url) {
 
         playing_ = true;
         std::cout << "Playback started successfully" << std::endl;
-        std::cout << "Current volume: " << libvlc_audio_get_volume(player_) << "%" << std::endl;
-        std::cout << "Player state: " << getStateString(libvlc_media_player_get_state(player_)) << std::endl;
     } catch (const std::exception& e) {
         if (media_) {
             libvlc_media_release(media_);
@@ -345,7 +278,7 @@ void Player::play(const std::string& url) {
 }
 
 void Player::playPodcastFeed(const std::string& feedUrl) {
-    std::cout << "Loading podcast feed: " << feedUrl << std::endl;
+    std::cout << "Loading podcast feed..." << std::endl;
     
     try {
         // Load and parse the feed
@@ -354,10 +287,7 @@ void Player::playPodcastFeed(const std::string& feedUrl) {
         // Get the latest episode
         current_episode_ = podcast_feed_.getLatestEpisode();
         
-        std::cout << "Playing latest episode: " << current_episode_.title << std::endl;
-        std::cout << "Description: " << current_episode_.description << std::endl;
-        std::cout << "Publication date: " << current_episode_.pubDate << std::endl;
-        std::cout << "DEBUG: Episode URL: [" << current_episode_.url << "]" << std::endl;
+        std::cout << "Playing: " << current_episode_.title << std::endl;
         
         // Play the episode's audio URL
         play(current_episode_.url);
