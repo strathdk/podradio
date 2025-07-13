@@ -20,7 +20,7 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install -y vlc libvlc-dev
 
 # Install Bluetooth development libraries (required for Bluetooth support)
-sudo apt install -y libbluetooth-dev bluez-dev bluez bluez-tools
+sudo apt install -y libbluetooth-dev bluez bluez-tools
 
 # Install other build dependencies
 sudo apt install -y cmake g++ pkg-config libcurl4-openssl-dev uuid-dev
@@ -52,9 +52,11 @@ sudo pacman -S cmake gcc pkgconfig curl util-linux
 
 #### Package Name Troubleshooting:
 If you get "package not found" errors, try these alternative package names:
-- `libbluetooth-dev` might be `bluez-libs-devel` or `bluez-devel`
-- `bluez-dev` might be `bluez-libs-devel`
-- `uuid-dev` might be `libuuid-devel` or `util-linux-devel`
+- **Ubuntu/Debian**: `libbluetooth-dev`, `bluez`, `bluez-tools`, `uuid-dev`
+- **Fedora/RHEL**: `bluez-libs-devel`, `bluez`, `bluez-tools`, `libuuid-devel`
+- **Arch Linux**: `bluez`, `bluez-libs`, `bluez-utils`, `util-linux`
+
+**Note**: The package `bluez-dev` doesn't exist on most systems - use `libbluetooth-dev` instead.
 
 ## Build with Bluetooth Support
 
@@ -63,7 +65,7 @@ Bluetooth support is **optional** and automatically enabled when BlueZ libraries
 ### Option 1: Auto-detection (Recommended)
 ```bash
 # Install BlueZ development libraries first
-sudo apt install -y libbluetooth-dev bluez-dev
+sudo apt install -y libbluetooth-dev bluez bluez-tools
 
 # Clone and build
 git clone <repository-url>

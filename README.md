@@ -301,7 +301,7 @@ cmake ..
 **Bluetooth Libraries Not Found (Optional)**
 ```bash
 # Ubuntu/Debian/Raspberry Pi:
-sudo apt install libbluetooth-dev bluez-dev
+sudo apt install libbluetooth-dev bluez bluez-tools
 
 # Fedora/RHEL:
 sudo dnf install bluez-libs-devel

@@ -47,7 +47,7 @@ install_dependencies() {
             read -p "Install Bluetooth support? (y/N): " -n 1 -r
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
-                sudo apt install -y libbluetooth-dev bluez-dev bluez bluez-tools uuid-dev
+                sudo apt install -y libbluetooth-dev bluez bluez-tools uuid-dev
                 echo "✅ Bluetooth support will be enabled"
             else
                 echo "⚠️  Bluetooth support will be disabled"
