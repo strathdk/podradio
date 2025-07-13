@@ -8,6 +8,7 @@ A modern C++ podcast player and radio streaming application with RSS feed suppor
 - 📡 **RSS Feed Support**: Subscribe to and manage podcast RSS feeds
 - 🔍 **Episode Management**: Browse and organize podcast episodes
 - 🎛️ **Audio Controls**: Play, pause, seek, and volume control
+- 📱 **Bluetooth Control**: Remote control via Bluetooth (Raspberry Pi)
 - 🧪 **Well Tested**: Comprehensive unit test coverage
 
 ## Prerequisites
@@ -19,7 +20,7 @@ A modern C++ podcast player and radio streaming application with RSS feed suppor
 ### Supported Platforms
 
 - macOS (tested)
-- Linux
+- Linux (with Bluetooth support on Raspberry Pi)
 - Windows
 
 ## Dependencies
@@ -92,6 +93,12 @@ cmake --build .
 
 # With command line options
 ./src/podradio --help
+
+# Start with Bluetooth server (Raspberry Pi)
+./src/podradio --bluetooth
+
+# Start with Bluetooth on custom port
+./src/podradio --bluetooth --bt-port 2
 ```
 
 ### Managing Podcast Feeds
@@ -125,6 +132,28 @@ player.play();
 player.pause();
 player.setVolume(0.8);
 ```
+
+### Bluetooth Control (Raspberry Pi)
+
+Control PodRadio remotely via Bluetooth:
+
+```bash
+# Start with Bluetooth enabled
+./src/podradio --bluetooth
+
+# Or enable in interactive mode
+bluetooth start
+bluetooth status
+bluetooth clients
+```
+
+Use the Python client example:
+```bash
+cd examples
+python bluetooth_client.py
+```
+
+See [BLUETOOTH_SETUP.md](BLUETOOTH_SETUP.md) for detailed setup instructions.
 
 ## Testing
 
