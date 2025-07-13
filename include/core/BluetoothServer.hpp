@@ -77,7 +77,7 @@ private:
     
     // Client management
     std::vector<std::shared_ptr<BluetoothClient>> connectedClients_;
-    std::mutex clientsMutex_;
+    mutable std::mutex clientsMutex_;
     
     // Threading
     std::thread serverThread_;
