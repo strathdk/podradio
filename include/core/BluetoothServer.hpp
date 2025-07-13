@@ -3,6 +3,7 @@
 #include "core/FeedManager.hpp"
 #include "core/Player.hpp"
 #include <thread>
+#include <mutex>
 #include <atomic>
 #include <string>
 #include <vector>

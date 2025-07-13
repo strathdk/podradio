@@ -6,7 +6,7 @@
 #include <sys/socket.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <uuid/uuid.h>
+#include <chrono>
 
 namespace podradio {
 namespace core {
@@ -45,7 +45,8 @@ bool BluetoothServer::start() {
     // Bind socket to RFCOMM port
     struct sockaddr_rc addr = {0};
     addr.rc_family = AF_BLUETOOTH;
-    addr.rc_bdaddr = *BDADDR_ANY;
+    bdaddr_t any_addr = *BDADDR_ANY;
+    addr.rc_bdaddr = any_addr;
     addr.rc_channel = (uint8_t)port_;
 
     if (bind(serverSocket_, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
@@ -237,7 +238,9 @@ void BluetoothServer::cleanupDisconnectedClients() {
 
 bool BluetoothServer::registerService() {
     // Create SDP session
-    sdpSession_ = sdp_connect(BDADDR_ANY, BDADDR_LOCAL, SDP_RETRY_IF_BUSY);
+    bdaddr_t any_addr = *BDADDR_ANY;
+    bdaddr_t local_addr = *BDADDR_LOCAL;
+    sdpSession_ = sdp_connect(&any_addr, &local_addr, SDP_RETRY_IF_BUSY);
     if (!sdpSession_) {
         std::cerr << "Failed to create SDP session" << std::endl;
         return false;
