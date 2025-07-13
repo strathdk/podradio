@@ -5,6 +5,7 @@ find_package(CURL REQUIRED)
 add_library(podradio_core
     core/Player.cpp
     core/PodcastFeed.cpp
+    core/FeedManager.cpp
 )
 
 target_include_directories(podradio_core
@@ -22,6 +23,7 @@ target_link_libraries(podradio_core
         tinyxml2::tinyxml2
         pugixml
         ada::ada
+        nlohmann_json::nlohmann_json
 )
 
 # Add executable
