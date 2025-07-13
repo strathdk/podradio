@@ -13,9 +13,45 @@ A modern C++ podcast player and radio streaming application with RSS feed suppor
 
 ## Prerequisites
 
-- **CMake** (>= 3.15)
+- **CMake** (>= 3.10)
 - **C++17** compatible compiler (GCC, Clang, or MSVC)
+- **VLC Media Player** with development libraries
 - **Internet connection** for downloading dependencies
+
+### Installing VLC
+
+#### Ubuntu/Debian/Raspberry Pi OS:
+```bash
+sudo apt update
+sudo apt install vlc libvlc-dev
+```
+
+#### macOS:
+```bash
+# Option 1: Download from website
+# Visit: https://www.videolan.org/vlc/download-macosx.html
+
+# Option 2: Using Homebrew
+brew install --cask vlc
+```
+
+#### Fedora/CentOS/RHEL:
+```bash
+sudo dnf install vlc-devel
+```
+
+#### Arch Linux:
+```bash
+sudo pacman -S vlc
+```
+
+#### Windows:
+```bash
+# Using vcpkg
+vcpkg install vlc
+
+# Or download from: https://www.videolan.org/vlc/download-windows.html
+```
 
 ### Supported Platforms
 
@@ -36,12 +72,28 @@ This project uses [CPM](https://github.com/cpm-cmake/CPM.cmake) for dependency m
 
 ## Building the Project
 
-### Quick Start
+### Quick Start (Recommended)
 
+Use the automated build script:
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd podradio
+
+# Run the build script (installs dependencies and builds)
+./build.sh
+```
+
+The script will:
+- Detect your operating system
+- Install required dependencies (VLC, build tools)
+- Ask if you want Bluetooth support (Linux only)
+- Build the project automatically
+
+### Manual Build
+
+```bash
+# Install VLC first (see prerequisites above)
 
 # Create build directory
 mkdir build && cd build
@@ -229,6 +281,34 @@ doxygen Doxyfile
 
 ### Build Issues
 
+**VLC Not Found Error**
+```bash
+# Ubuntu/Debian/Raspberry Pi:
+sudo apt install vlc libvlc-dev
+
+# macOS:
+brew install --cask vlc
+
+# Fedora/RHEL:
+sudo dnf install vlc-devel
+
+# Then rebuild:
+rm -rf build/
+mkdir build && cd build
+cmake ..
+```
+
+**Bluetooth Libraries Not Found (Optional)**
+```bash
+# Ubuntu/Debian/Raspberry Pi:
+sudo apt install libbluetooth-dev bluez-dev
+
+# Fedora/RHEL:
+sudo dnf install bluez-libs-devel
+
+# Rebuild to enable Bluetooth support
+```
+
 **CMake Configuration Fails**
 ```bash
 # Clear CMake cache
@@ -239,7 +319,7 @@ cmake ..
 
 **Missing Dependencies**
 - Ensure you have a stable internet connection for dependency download
-- Check that CMake version is >= 3.15
+- Check that CMake version is >= 3.10
 
 **Compiler Errors**
 - Verify C++17 support: `gcc --version` or `clang --version`

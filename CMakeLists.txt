@@ -5,7 +5,9 @@ project(podradio)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find VLC
+# Find VLC Media Player
+message(STATUS "Looking for VLC libraries...")
+
 if(APPLE)
     # On macOS, VLC.app contains the libraries
     set(VLC_APP_PATH "/Applications/VLC.app/Contents/MacOS")
@@ -13,12 +15,57 @@ if(APPLE)
     set(LIBVLC_LIBRARIES "${VLC_APP_PATH}/lib/libvlc.dylib")
     
     if(NOT EXISTS ${LIBVLC_LIBRARIES})
-        message(FATAL_ERROR "VLC libraries not found. Please install VLC.app first.")
+        message(FATAL_ERROR "
+❌ VLC not found on macOS!
+
+Please install VLC Media Player:
+1. Download from: https://www.videolan.org/vlc/download-macosx.html
+2. Install VLC.app to /Applications/
+3. Run cmake again
+
+Alternative installation via Homebrew:
+  brew install --cask vlc
+")
     endif()
+    message(STATUS "✅ VLC found: ${LIBVLC_LIBRARIES}")
 else()
-    # On other platforms, use pkg-config
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(LIBVLC REQUIRED libvlc)
+    # On Linux/Windows, use pkg-config
+    find_package(PkgConfig QUIET)
+    if(NOT PkgConfig_FOUND)
+        message(FATAL_ERROR "
+❌ pkg-config not found!
+
+Please install pkg-config:
+  Ubuntu/Debian: sudo apt install pkg-config
+  Fedora/RHEL:   sudo dnf install pkgconfig
+  Arch Linux:    sudo pacman -S pkgconfig
+")
+    endif()
+    
+    pkg_check_modules(LIBVLC libvlc)
+    if(NOT LIBVLC_FOUND)
+        message(FATAL_ERROR "
+❌ VLC development libraries not found!
+
+Please install VLC development packages:
+
+Ubuntu/Debian/Raspberry Pi OS:
+  sudo apt update
+  sudo apt install vlc libvlc-dev
+
+Fedora/CentOS/RHEL:
+  sudo dnf install vlc-devel
+
+Arch Linux:
+  sudo pacman -S vlc
+
+Windows (using vcpkg):
+  vcpkg install vlc
+
+After installation, run cmake again.
+")
+    endif()
+    message(STATUS "✅ VLC found: ${LIBVLC_LIBRARIES}")
 endif()
 
 # Add third-party libraries

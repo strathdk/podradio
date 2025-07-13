@@ -10,22 +10,61 @@ This guide explains how to set up and use the Bluetooth functionality in PodRadi
 - Working audio output (HDMI, analog, or USB)
 
 ### Software Dependencies
+
+#### For Debian/Ubuntu/Raspberry Pi OS:
 ```bash
 # Update system
 sudo apt update && sudo apt upgrade -y
 
-# Install Bluetooth development libraries
-sudo apt install -y libbluetooth-dev bluez bluez-tools
+# Install VLC Media Player (REQUIRED)
+sudo apt install -y vlc libvlc-dev
+
+# Install Bluetooth development libraries (required for Bluetooth support)
+sudo apt install -y libbluetooth-dev bluez-dev bluez bluez-tools
 
 # Install other build dependencies
-sudo apt install -y cmake g++ pkg-config libcurl4-openssl-dev vlc libvlc-dev uuid-dev
+sudo apt install -y cmake g++ pkg-config libcurl4-openssl-dev uuid-dev
 ```
+
+#### For Fedora/CentOS/RHEL:
+```bash
+# Install VLC Media Player (REQUIRED)
+sudo dnf install -y vlc-devel
+
+# Install Bluetooth development libraries
+sudo dnf install -y bluez-libs-devel bluez bluez-tools
+
+# Install other dependencies
+sudo dnf install -y cmake gcc-c++ pkgconfig libcurl-devel libuuid-devel
+```
+
+#### For Arch Linux:
+```bash
+# Install VLC Media Player (REQUIRED)
+sudo pacman -S vlc
+
+# Install Bluetooth development libraries
+sudo pacman -S bluez bluez-libs bluez-utils
+
+# Install other dependencies
+sudo pacman -S cmake gcc pkgconfig curl util-linux
+```
+
+#### Package Name Troubleshooting:
+If you get "package not found" errors, try these alternative package names:
+- `libbluetooth-dev` might be `bluez-libs-devel` or `bluez-devel`
+- `bluez-dev` might be `bluez-libs-devel`
+- `uuid-dev` might be `libuuid-devel` or `util-linux-devel`
 
 ## Build with Bluetooth Support
 
-The project automatically includes Bluetooth support when building on Linux:
+Bluetooth support is **optional** and automatically enabled when BlueZ libraries are detected on Linux systems:
 
+### Option 1: Auto-detection (Recommended)
 ```bash
+# Install BlueZ development libraries first
+sudo apt install -y libbluetooth-dev bluez-dev
+
 # Clone and build
 git clone <repository-url>
 cd podradio
@@ -33,6 +72,33 @@ mkdir build && cd build
 cmake ..
 cmake --build .
 ```
+
+If BlueZ libraries are found, you'll see:
+```
+-- BlueZ found - Bluetooth support enabled
+```
+
+If BlueZ is not found, you'll see:
+```
+BlueZ not found - Bluetooth support disabled
+To enable Bluetooth: sudo apt install libbluetooth-dev bluez-dev
+```
+
+### Option 2: Build without Bluetooth
+You can build PodRadio without Bluetooth support on any platform:
+```bash
+# Build normally - works on macOS, Windows, and Linux without BlueZ
+cmake ..
+cmake --build .
+```
+
+### Checking Build Configuration
+After building, check if Bluetooth support is available:
+```bash
+./src/podradio --help
+```
+
+If Bluetooth is enabled, you'll see Bluetooth-related options in the help.
 
 ## Bluetooth Service Configuration
 

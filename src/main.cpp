@@ -1,7 +1,9 @@
 #include "core/Player.hpp"
 #include "core/FeedManager.hpp"
 #include "core/Subscription.hpp"
+#ifdef ENABLE_BLUETOOTH
 #include "core/BluetoothServer.hpp"
+#endif
 #include <iostream>
 #include <string>
 #include <thread>
@@ -30,17 +32,22 @@ void printHelp() {
               << "  resume               - Resume playback\n"
               << "  stop                 - Stop playback\n"
               << "  status               - Show playback status\n\n"
+#ifdef ENABLE_BLUETOOTH
               << "Bluetooth:\n"
               << "  bluetooth start      - Start Bluetooth server\n"
               << "  bluetooth stop       - Stop Bluetooth server\n"
               << "  bluetooth status     - Show Bluetooth server status\n"
               << "  bluetooth clients    - List connected Bluetooth clients\n\n"
+#endif
               << "General:\n"
               << "  help                 - Show this help\n"
               << "  quit                 - Exit program\n\n"
               << "Options:\n"
+#ifdef ENABLE_BLUETOOTH
               << "  --bluetooth          - Start with Bluetooth server enabled\n"
-              << "  --bt-port <port>     - Set Bluetooth RFCOMM port (default: 1)\n\n"
+              << "  --bt-port <port>     - Set Bluetooth RFCOMM port (default: 1)\n"
+#endif
+              << "\n"
               << "If no command line arguments are provided, the program will start in interactive mode.\n\n";
 }
 
@@ -64,7 +71,11 @@ void printPodcastList(const FeedManager& feedManager) {
     std::cout << "* = Currently selected\n";
 }
 
-void handleCommand(Player& player, FeedManager& feedManager, std::shared_ptr<BluetoothServer>& bluetoothServer, const std::string& command, const std::vector<std::string>& args = {}) {
+#ifdef ENABLE_BLUETOOTH
+void handleCommand(Player& player, FeedManager& feedManager, std::shared_ptr<BluetoothServer>& bluetoothServer, const std::string& command, const std::vector<std::string>& args = {})
+#else
+void handleCommand(Player& player, FeedManager& feedManager, const std::string& command, const std::vector<std::string>& args = {})
+#endif {
     try {
         if (command == "add") {
             if (args.size() < 2) {
@@ -155,6 +166,7 @@ void handleCommand(Player& player, FeedManager& feedManager, std::shared_ptr<Blu
                 std::cout << "Current podcast: " << podcast->name << "\n";
             }
         }
+#ifdef ENABLE_BLUETOOTH
         else if (command == "bluetooth") {
             if (args.empty()) {
                 std::cout << "Usage: bluetooth <start|stop|status|clients>\n";
@@ -217,6 +229,7 @@ void handleCommand(Player& player, FeedManager& feedManager, std::shared_ptr<Blu
                 std::cout << "Unknown bluetooth command. Use: start, stop, status, or clients\n";
             }
         }
+#endif
         else if (command == "help") {
             printHelp();
         }
@@ -243,15 +256,19 @@ std::vector<std::string> parseArguments(const std::string& input) {
 }
 
 // Global variables for signal handling
+#ifdef ENABLE_BLUETOOTH
 std::shared_ptr<BluetoothServer> g_bluetoothServer;
+#endif
 bool g_running = true;
 
 void signalHandler(int signal) {
     std::cout << "\nReceived signal " << signal << ", shutting down...\n";
     g_running = false;
+#ifdef ENABLE_BLUETOOTH
     if (g_bluetoothServer) {
         g_bluetoothServer->stop();
     }
+#endif
 }
 
 int main(int argc, char* argv[]) {
@@ -262,20 +279,27 @@ int main(int argc, char* argv[]) {
     try {
         Player player;
         FeedManager feedManager;
+#ifdef ENABLE_BLUETOOTH
         std::shared_ptr<BluetoothServer> bluetoothServer;
+#endif
         
         // Command line argument parsing
         bool enableBluetooth = false;
+#ifdef ENABLE_BLUETOOTH
         int bluetoothPort = 1;
+#endif
         std::vector<std::string> commands;
         
         for (int i = 1; i < argc; ++i) {
             std::string arg = argv[i];
+#ifdef ENABLE_BLUETOOTH
             if (arg == "--bluetooth") {
                 enableBluetooth = true;
             } else if (arg == "--bt-port" && i + 1 < argc) {
                 bluetoothPort = std::stoi(argv[++i]);
-            } else if (arg == "--help") {
+            } else
+#endif
+            if (arg == "--help") {
                 printHelp();
                 return 0;
             } else {
@@ -284,6 +308,7 @@ int main(int argc, char* argv[]) {
         }
         
         // Start Bluetooth server if requested
+#ifdef ENABLE_BLUETOOTH
         if (enableBluetooth) {
             bluetoothServer = std::make_shared<BluetoothServer>(feedManager, player, bluetoothPort);
             g_bluetoothServer = bluetoothServer;
@@ -306,6 +331,14 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
         }
+#else
+        if (enableBluetooth) {
+            std::cerr << "Bluetooth support not available in this build" << std::endl;
+            std::cerr << "Install BlueZ development libraries and rebuild:" << std::endl;
+            std::cerr << "  sudo apt install libbluetooth-dev bluez-dev" << std::endl;
+            return 1;
+        }
+#endif
 
         // Handle command line arguments if provided
         if (!commands.empty()) {
@@ -313,7 +346,11 @@ int main(int argc, char* argv[]) {
             std::vector<std::string> args(commands.begin() + 1, commands.end());
             
             try {
+#ifdef ENABLE_BLUETOOTH
                 handleCommand(player, feedManager, bluetoothServer, command, args);
+#else
+                handleCommand(player, feedManager, command, args);
+#endif
                 
                 // For play commands, keep the program running until interrupted
                 if (command == "play") {
@@ -341,9 +378,11 @@ int main(int argc, char* argv[]) {
 
         // Interactive mode
         std::cout << "Welcome to PodRadio!\n";
+#ifdef ENABLE_BLUETOOTH
         if (enableBluetooth) {
             std::cout << "Bluetooth server is running on port " << bluetoothPort << "\n";
         }
+#endif
         printHelp();
 
         std::string input;
@@ -364,7 +403,11 @@ int main(int argc, char* argv[]) {
                     if (!parsedArgs.empty()) {
                         std::string command = parsedArgs[0];
                         std::vector<std::string> args(parsedArgs.begin() + 1, parsedArgs.end());
+#ifdef ENABLE_BLUETOOTH
                         handleCommand(player, feedManager, bluetoothServer, command, args);
+#else
+                        handleCommand(player, feedManager, command, args);
+#endif
                     }
                 }
             }
@@ -374,10 +417,12 @@ int main(int argc, char* argv[]) {
         }
 
         // Clean shutdown
+#ifdef ENABLE_BLUETOOTH
         if (bluetoothServer) {
             std::cout << "Stopping Bluetooth server...\n";
             bluetoothServer->stop();
         }
+#endif
 
         return 0;
     }
